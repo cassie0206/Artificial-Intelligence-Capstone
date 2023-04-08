@@ -170,7 +170,7 @@ public:
 
     int getTn(int x, int y) {
         if (root->child2board[x][y]) {
-            cout << root->child2board[x][y]->parent_move.x << " " << root->child2board[x][y]->parent_move.y << endl;
+            //cout << root->child2board[x][y]->parent_move.x << " " << root->child2board[x][y]->parent_move.y << endl;
             return root->child2board[x][y]->Tn;
         }
         else return 0;
@@ -227,7 +227,7 @@ public:
         {
             traverse(root);
             end = clock();
-            
+
             if (((double)(end - start)) / CLOCKS_PER_SEC >= time_limit)
                 break;
         }
@@ -317,6 +317,8 @@ public:
         vector<Step> legal_steps;
 
         for (int i = 0; i < 6; i++) {
+            result[0] = it.first;
+            result[1] = it.second;
             int cur_length = 1;
             for (int j = 0; j < max_step - 1; j++)
             {
@@ -350,18 +352,6 @@ public:
                 break;
             }
         }
-
-
-        /*nodePool.push_back(Node(tmp, engine));
-        nodePool.back().parent_move = it;
-        node->children.push_back(&nodePool.back());
-        node->child2board[it.x][it.y] = &nodePool.back();*/
-        //if (root == node) cout << "It's root!\n";
-        //else cout << "It's NOT root!\n";
-        //if (node->child2board[it.first][it.second]->parent_move.numOfStep > 1)
-        //    cout << "x: " << it.first << "y: " << it.second << "numOfStep: " << node->child2board[it.first][it.second]->parent_move.numOfStep << "dir: " << node->child2board[it.first][it.second]->parent_move.dir << endl;
-        //cout << "check:\n";
-        //print_check();
         return node->children.back();
     }
 
@@ -420,6 +410,8 @@ public:
                     shuffle(legal_dir.begin(), legal_dir.end(), engine);
 
                     for (int i = 0; i < 6; i++) {
+                        result[0] = it.first;
+                        result[1] = it.second;
                         int keep = 1;
                         for (int j = 0; j < max_step - 1; j++)
                         {
@@ -438,37 +430,6 @@ public:
                         }
                     }
                 }
-
-
-                /*std::uniform_int_distribution<int> uniform(i, n - 1);
-                int index = uniform(engine);
-                auto it = empty[index];
-
-                vector<int> legal_dir = { 1, 2, 3, 4, 5, 6 };
-                shuffle(legal_dir.begin(), legal_dir.end(), engine);
-                Step* legal_move = nullptr;
-
-                for (int i = 0; i < 6; i++) {
-                    Step move = Step(it.first, it.second, 3, legal_dir[i]);
-                    int max_dis = checkMoveValidation(tmp, move);
-                    if (max_dis != -1) {
-                        std::uniform_int_distribution<int> uniform1(1, max_dis);
-                        int dis = uniform1(engine);
-                        move.numOfStep = dis;
-                        legal_move = &move;
-                        break;
-                    }
-                }
-
-                if (!legal_move) {
-                    swap(empty[index], empty[i]);
-                    i++;
-                }
-                else {
-                    swap(empty[index], empty[n - 1]);
-                    nextMove = legal_move;
-                    break;
-                }*/
             }
 
             if (n == 0 || i == n - 1)
@@ -553,7 +514,7 @@ vector<int> GetStep(int mapStat[12][12], int gameStat[12][12])
 
         }
     }
-    cout << max_count << endl;
+    //cout << max_count << endl;
     Step* tmp = mcts->getBestChild(key_x, key_y);
     step[0] = tmp->x;
     step[1] = tmp->y;
