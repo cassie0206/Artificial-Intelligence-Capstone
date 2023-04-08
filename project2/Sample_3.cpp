@@ -155,32 +155,6 @@ public:
                 {
                     if (state[i][j] == 0)
                         legal.push_back(pair<int, int>(i, j));
-                    /*shuffle(legal_dir.begin(), legal_dir.end(), engine);
-                    for (int k = 0; k < 6; k++)
-                    {
-                        for(int n = 1; n < 4; n++)
-                        {
-                            Step tmp = Step(i, j, n, legal_dir[k]);
-                            int max_dis = checkMoveValidation(state, tmp);
-                            if(max_dis == n){
-                                legal.push_back(tmp);
-                                cout << tmp.x << " " << tmp.y << " " << tmp.numOfStep << " " << tmp.dir << "\n";
-                                break;
-                            }
-                        }
-                        Step tmp = Step(i, j, 3, legal_dir[k]);
-                        int max_dis = checkMoveValidation(state, tmp);
-
-                        if (max_dis != -1) {
-                            std::uniform_int_distribution<int> uniform(1, max_dis);
-                            int dis = uniform(engine);
-                            tmp.numOfStep = dis;
-                            legal.push_back(tmp);
-
-                            cout << tmp.x << " " << tmp.y << " " << tmp.numOfStep << " " << tmp.dir << "\n";
-                            break;
-                        }
-                    }*/
                 }
             }
 
@@ -203,8 +177,8 @@ public:
     }
 
     Step* getBestChild(int x, int y) {
-        cout << x << " " << y << endl;
-        cout << root->child2board[x][y]->parent_move.x << " " << root->child2board[x][y]->parent_move.y << endl;
+        //cout << x << " " << y << endl;
+        //cout << root->child2board[x][y]->parent_move.x << " " << root->child2board[x][y]->parent_move.y << endl;
         return &(root->child2board[x][y]->parent_move);
     }
 
@@ -246,14 +220,14 @@ public:
     void run(int state[12][12], clock_t start, int time_limit)
     {
         root = new Node(state, engine);
-        nodePool.push_back(*root);
+        //nodePool.push_back(*root);
         clock_t end;
 
         while (1)
         {
             traverse(root);
             end = clock();
-            cout << "1\n";
+            
             if (((double)(end - start)) / CLOCKS_PER_SEC >= time_limit)
                 break;
         }
@@ -335,23 +309,41 @@ public:
         // randomly pick max distance
         uniform_int_distribution<int> uniform(1, 3);
         int max_step = uniform(engine);
+        //int max_step = 3;
+        //cout << "expand max step: " << max_step << endl;
         // randomly pick direction
         vector<int> legal_dir = { 1, 2, 3, 4, 5, 6 };
         shuffle(legal_dir.begin(), legal_dir.end(), engine);
-        int keep = 1;
+        vector<Step> legal_steps;
 
         for (int i = 0; i < 6; i++) {
+            int cur_length = 1;
             for (int j = 0; j < max_step - 1; j++)
             {
-                if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || tmp[result[0]][result[1]] == 0) {
-                    result = Next_Node(result[0], result[1], legal_dir[i]);
+                result = Next_Node(result[0], result[1], legal_dir[i]);
+                if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || tmp[result[0]][result[1]] != 0) {
+                    break;
+                }
+                else {
+                    cout << "check legal direction: " << legal_dir[i] << "\n";
+                    cout << result[0] << " " << result[1] << "\n";
                     tmp[result[0]][result[1]] = 3;
-                    keep++;
+                    cur_length++;
                 }
             }
-            if (keep != 1 || i == 5) {
+            if (cur_length != 1 || i == 5) {
+                //if (keep > 1)
+                //    cout << "expand length: " << keep << "\n";
+                cout << "check after expand board:\n";
+                for (int i = 0; i < 12; i++) {
+                    for (int j = 0; j < 12; j++) {
+                        cout << tmp[j][i] << " ";
+                    }
+                    cout << "\n";
+                }
+                cout << "expand step: " << it.first << " " << it.second << " " << cur_length << " " << legal_dir[i] << "\n";
                 Node* newNode = new Node(tmp, engine);
-                Step newStep = Step(it.first, it.second, keep, legal_dir[i]);
+                Step newStep = Step(it.first, it.second, cur_length, legal_dir[i]);
                 newNode->parent_move = newStep;
                 node->children.push_back(newNode);
                 node->child2board[it.first][it.second] = newNode;
@@ -365,7 +357,9 @@ public:
         node->children.push_back(&nodePool.back());
         node->child2board[it.x][it.y] = &nodePool.back();*/
         //if (root == node) cout << "It's root!\n";
-        //cout << "x: " << it.x << "y: " << it.y << "double check x: " << node->child2board[it.x][it.y]->parent_move.x << "numOfStep: " << node->child2board[it.x][it.y]->parent_move.numOfStep << "dir: " << node->child2board[it.x][it.y]->parent_move.dir << endl;
+        //else cout << "It's NOT root!\n";
+        //if (node->child2board[it.first][it.second]->parent_move.numOfStep > 1)
+        //    cout << "x: " << it.first << "y: " << it.second << "numOfStep: " << node->child2board[it.first][it.second]->parent_move.numOfStep << "dir: " << node->child2board[it.first][it.second]->parent_move.dir << endl;
         //cout << "check:\n";
         //print_check();
         return node->children.back();
@@ -420,21 +414,28 @@ public:
                     // randomly pick max distance
                     uniform_int_distribution<int> uniform(1, 3);
                     int max_step = uniform(engine);
+                    //cout << "simulate max step: " << max_step << endl;
                     // randomly pick direction
                     vector<int> legal_dir = { 1, 2, 3, 4, 5, 6 };
                     shuffle(legal_dir.begin(), legal_dir.end(), engine);
-                    int keep = 1;
 
                     for (int i = 0; i < 6; i++) {
+                        int keep = 1;
                         for (int j = 0; j < max_step - 1; j++)
                         {
-                            if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || after[result[0]][result[1]] == 0) {
-                                result = Next_Node(result[0], result[1], legal_dir[i]);
+                            result = Next_Node(result[0], result[1], legal_dir[i]);
+                            if (result[0] >= 0 && result[0] < 12 && result[1] >= 0 && result[1] < 12 && after[result[0]][result[1]] == 0) {
                                 after[result[0]][result[1]] = 3;
                                 keep++;
                             }
+                            else break;
                         }
-                        if (keep != 1 || i == 5) break;
+
+                        if (keep != 1 || i == 5) {
+                            //if (keep > 1)
+                            //    cout << "select length: " << keep << "\n";
+                            break;
+                        }
                     }
                 }
 
@@ -537,7 +538,7 @@ vector<int> GetStep(int mapStat[12][12], int gameStat[12][12])
     cout << "109550005_MCTS\n";
     clock_t start = clock();
     MCTS* mcts = new MCTS();
-    mcts->run(mapStat, start, 4);
+    mcts->run(mapStat, start, 5);
 
     int max_count = -1;
     int key_x = 0, key_y = 0;
