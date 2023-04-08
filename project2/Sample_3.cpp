@@ -315,43 +315,37 @@ public:
         vector<int> legal_dir = { 1, 2, 3, 4, 5, 6 };
         shuffle(legal_dir.begin(), legal_dir.end(), engine);
         vector<Step> legal_steps;
+        int cur_length = 1;
 
-        for (int i = 0; i < 6; i++) {
-            result[0] = it.first;
-            result[1] = it.second;
-            int cur_length = 1;
-            for (int j = 0; j < max_step - 1; j++)
-            {
-                result = Next_Node(result[0], result[1], legal_dir[i]);
-                if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || tmp[result[0]][result[1]] != 0) {
-                    break;
-                }
-                else {
-                    cout << "check legal direction: " << legal_dir[i] << "\n";
-                    cout << result[0] << " " << result[1] << "\n";
-                    tmp[result[0]][result[1]] = 3;
-                    cur_length++;
-                }
-            }
-            if (cur_length != 1 || i == 5) {
-                //if (keep > 1)
-                //    cout << "expand length: " << keep << "\n";
-                cout << "check after expand board:\n";
-                for (int i = 0; i < 12; i++) {
-                    for (int j = 0; j < 12; j++) {
-                        cout << tmp[j][i] << " ";
-                    }
-                    cout << "\n";
-                }
-                cout << "expand step: " << it.first << " " << it.second << " " << cur_length << " " << legal_dir[i] << "\n";
-                Node* newNode = new Node(tmp, engine);
-                Step newStep = Step(it.first, it.second, cur_length, legal_dir[i]);
-                newNode->parent_move = newStep;
-                node->children.push_back(newNode);
-                node->child2board[it.first][it.second] = newNode;
+        for (int j = 0; j < max_step - 1; j++)
+        {
+            result = Next_Node(result[0], result[1], legal_dir[0]);
+            if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || tmp[result[0]][result[1]] != 0) {
                 break;
             }
+            else {
+                cout << "check legal direction: " << legal_dir[0] << "\n";
+                cout << result[0] << " " << result[1] << "\n";
+                tmp[result[0]][result[1]] = 3;
+                cur_length++;
+            }
         }
+        //if (keep > 1)
+        //    cout << "expand length: " << keep << "\n";
+        cout << "check after expand board:\n";
+        for (int i = 0; i < 12; i++) {
+            for (int j = 0; j < 12; j++) {
+                cout << tmp[j][i] << " ";
+            }
+            cout << "\n";
+        }
+        cout << "expand step: " << it.first << " " << it.second << " " << cur_length << " " << legal_dir[0] << "\n";
+        Node* newNode = new Node(tmp, engine);
+        Step newStep = Step(it.first, it.second, cur_length, legal_dir[0]);
+        newNode->parent_move = newStep;
+        node->children.push_back(newNode);
+        node->child2board[it.first][it.second] = newNode;
+
         return node->children.back();
     }
 
@@ -408,26 +402,16 @@ public:
                     // randomly pick direction
                     vector<int> legal_dir = { 1, 2, 3, 4, 5, 6 };
                     shuffle(legal_dir.begin(), legal_dir.end(), engine);
+                    int cur_length = 1;
 
-                    for (int i = 0; i < 6; i++) {
-                        result[0] = it.first;
-                        result[1] = it.second;
-                        int keep = 1;
-                        for (int j = 0; j < max_step - 1; j++)
-                        {
-                            result = Next_Node(result[0], result[1], legal_dir[i]);
-                            if (result[0] >= 0 && result[0] < 12 && result[1] >= 0 && result[1] < 12 && after[result[0]][result[1]] == 0) {
-                                after[result[0]][result[1]] = 3;
-                                keep++;
-                            }
-                            else break;
+                    for (int j = 0; j < max_step - 1; j++)
+                    {
+                        result = Next_Node(result[0], result[1], legal_dir[0]);
+                        if (result[0] >= 0 && result[0] < 12 && result[1] >= 0 && result[1] < 12 && after[result[0]][result[1]] == 0) {
+                            after[result[0]][result[1]] = 3;
+                            cur_length++;
                         }
-
-                        if (keep != 1 || i == 5) {
-                            //if (keep > 1)
-                            //    cout << "select length: " << keep << "\n";
-                            break;
-                        }
+                        else break;
                     }
                 }
             }
