@@ -164,7 +164,7 @@ public:
 
     MCTS()
     {
-        engine.seed(1234);
+        //engine.seed(1234);
         visited.resize(12, vector<int>(12, 0));
     }
 
@@ -176,10 +176,13 @@ public:
         else return 0;
     }
 
-    Step* getBestChild(int x, int y) {
+    void getBestChild(vector<int>& step, int x, int y) {
         //cout << x << " " << y << endl;
         //cout << root->child2board[x][y]->parent_move.x << " " << root->child2board[x][y]->parent_move.y << endl;
-        return &(root->child2board[x][y]->parent_move);
+        step[0] = root->child2board[x][y]->parent_move.x;
+        step[1] = root->child2board[x][y]->parent_move.y;
+        step[2] = root->child2board[x][y]->parent_move.numOfStep;
+        step[3] = root->child2board[x][y]->parent_move.dir;
     }
 
     vector<int> getBestStep() {
@@ -220,7 +223,7 @@ public:
     void run(int state[12][12], clock_t start, int time_limit)
     {
         root = new Node(state, engine);
-        //nodePool.push_back(*root);
+        nodePool.push_back(*root);
         clock_t end;
 
         while (1)
@@ -299,13 +302,13 @@ public:
         node->legal.pop_back();
 
         // place the legal move
-        int tmp[12][12];
-        memcpy(tmp, node->state, 12 * 12 * sizeof(int));
+        int after[12][12];
+        memcpy(after, node->state, 12 * 12 * sizeof(int));
         vector<int> result(2);
         result[0] = it.first;
         result[1] = it.second;
         // let player = 3 be MCTS simualtion player
-        tmp[result[0]][result[1]] = 3;
+        after[result[0]][result[1]] = 3;
         // randomly pick max distance
         uniform_int_distribution<int> uniform(1, 3);
         int max_step = uniform(engine);
@@ -320,27 +323,27 @@ public:
         for (int j = 0; j < max_step - 1; j++)
         {
             result = Next_Node(result[0], result[1], legal_dir[0]);
-            if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || tmp[result[0]][result[1]] != 0) {
+            if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || after[result[0]][result[1]] != 0) {
                 break;
             }
             else {
-                cout << "check legal direction: " << legal_dir[0] << "\n";
-                cout << result[0] << " " << result[1] << "\n";
-                tmp[result[0]][result[1]] = 3;
+                //cout << "check legal direction: " << legal_dir[0] << "\n";
+                //cout << result[0] << " " << result[1] << "\n";
+                after[result[0]][result[1]] = 3;
                 cur_length++;
             }
         }
         //if (keep > 1)
         //    cout << "expand length: " << keep << "\n";
-        cout << "check after expand board:\n";
+        /*cout << "check after expand board:\n";
         for (int i = 0; i < 12; i++) {
             for (int j = 0; j < 12; j++) {
                 cout << tmp[j][i] << " ";
             }
             cout << "\n";
-        }
-        cout << "expand step: " << it.first << " " << it.second << " " << cur_length << " " << legal_dir[0] << "\n";
-        Node* newNode = new Node(tmp, engine);
+        }*/
+        //cout << "expand step: " << it.first << " " << it.second << " " << cur_length << " " << legal_dir[0] << "\n";
+        Node* newNode = new Node(after, engine);
         Step newStep = Step(it.first, it.second, cur_length, legal_dir[0]);
         newNode->parent_move = newStep;
         node->children.push_back(newNode);
@@ -351,7 +354,6 @@ public:
 
     int simulate(const int state[12][12], bool isOpponent)
     {
-
         vector<pair<int, int>> empty;
         for (int i = 0; i < 12; i++)
         {
@@ -365,23 +367,25 @@ public:
         int after[12][12];
         memcpy(after, state, 12 * 12 * sizeof(int));
         int n = empty.size();
-        //if (n == 0) {
-        //    cout << "empty exit\n";
-        //    exit(0);
-        //}
+        if (n == 0) {
+            //    cout << "empty exit\n";
+            //    exit(0);
+            return isOpponent;
+        }
 
         while (1)
         {
             int i = 0;
             //int tmp[12][12];
             //memcpy(tmp, after, 12 * 12 * sizeof(int));
-            Step* nextMove = nullptr;
+            //Step* nextMove = nullptr;
 
             while (i < n)
             {
                 // randomly pick up an empty space
                 std::uniform_int_distribution<int> uniform(i, n - 1);
                 int index = uniform(engine);
+                //cout << n << " " << index << "\n";
                 auto it = empty[index];
 
                 if (after[it.first][it.second] != 0) {
@@ -413,11 +417,14 @@ public:
                         }
                         else break;
                     }
+
+                    swap(empty[index], empty[n - 1]);
+
+                    break;
                 }
             }
 
-            if (n == 0 || i == n - 1)
-                return isOpponent;
+            if (i >= n - 1) return isOpponent;
 
             isOpponent = !isOpponent;
             n--;
@@ -499,13 +506,7 @@ vector<int> GetStep(int mapStat[12][12], int gameStat[12][12])
         }
     }
     //cout << max_count << endl;
-    Step* tmp = mcts->getBestChild(key_x, key_y);
-    step[0] = tmp->x;
-    step[1] = tmp->y;
-    step[2] = tmp->numOfStep;
-    step[3] = tmp->dir;
-    //cout << "wefwef\n";
-    //step = mcts->getBestStep();
+    mcts->getBestChild(step, key_x, key_y);
 
     return step;
 }
