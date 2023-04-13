@@ -1,4 +1,4 @@
-#include "STcpClient_1.h"
+#include "STcpClient.h"
 #include <stdlib.h>
 #include <iostream>
 #include <vector>
@@ -100,32 +100,26 @@ struct Step
     Step(int x, int y, int numOfStep, int dir) : x(x), y(y), numOfStep(numOfStep), dir(dir) {}
 };
 
-int checkMoveValidation(int state[12][12], Step move, default_random_engine& engine)
+bool checkMoveValidation(int state[12][12], Step move)
 {
     // move = [x, y, move # of step, move direction]
     if (state[move.x][move.y] != 0)
-        return -1;
-    if (move.dir < 1 || move.dir > 6)
-        return -1;
+        return false;
+    if (move.numOfStep < 1 || move.numOfStep > 3)
+        return false;
 
     vector<int> result(2);
     result[0] = move.x;
     result[1] = move.y;
 
-    int max_distance = 1;
-    uniform_int_distribution<int> uniform(1, 3);
-    int max_step = uniform(engine);
-
-    for (int i = 0; i < max_step - 1; i++)
+    for (int i = 0; i < move.numOfStep - 1; i++)
     {
         result = Next_Node(result[0], result[1], move.dir);
         if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || state[result[0]][result[1]] != 0)
-            break;
-        else
-            max_distance++;
+            return false;
     }
-    //cout << move.x << " " << move.y << " " << move.numOfStep << " " << move.dir << "\n";
-    return max_distance;
+    // cout << move.x << " " << move.y << " " << move.numOfStep << " " << move.dir << "\n";
+    return true;
 }
 
 class MCTS
@@ -138,25 +132,134 @@ public:
         int raveTn;
         int raveX;
         int state[12][12];                  // current board state
-        Step parent_move;                 // (x, y)
+        Step parent_move;                   // (x, y)
         vector<vector<Node*>> child2board; // keep action according to the board position
-        vector<pair<int, int>> legal;                 // keep remain empty coordinate(x, y)
+        vector<Step> legal;                 // keep remain empty coordinate(x, y)
         vector<Node*> children;
 
-        Node(int s[12][12], std::default_random_engine& engine) : Tn(0), x(0), raveTn(0), raveX(0)
+        Node(int s[12][12], std::default_random_engine& engine, bool isRoot, vector<int>& res) : Tn(0), x(0), raveTn(0), raveX(0)
         {
             memcpy(state, s, 12 * 12 * sizeof(int));
             child2board.resize(12, vector<Node*>(12, nullptr));
-            vector<int> legal_dir = { 1, 2, 3, 4, 5, 6 };
+            Step keep;
+            int num = 0, numOf2 = 0, numOf3 = 0;
 
             for (int i = 0; i < 12; i++)
             {
                 for (int j = 0; j < 12; j++)
                 {
-                    if (state[i][j] == 0)
-                        legal.push_back(pair<int, int>(i, j));
+                    if (state[i][j] != 0)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        Step move = Step(i, j, 1, 1);
+                        legal.push_back(move);
+                        num++;
+                    }
+                    for (int k = 1; k < 7; k++)
+                    {
+                        int l = 2;
+                        for (; l < 4; l++)
+                        {
+                            Step newMove = Step(i, j, l, k);
+                            if (checkMoveValidation(state, newMove))
+                            {
+                                // cout << newMove.x << " " << newMove.y << " " << newMove.numOfStep << " " << newMove.dir << "\n";
+                                legal.push_back(newMove);
+                                keep = newMove;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        if (l == 3) {
+                            numOf2++;
+                        }
+                        if (l == 4)
+                            numOf3++;
+                    }
                 }
             }
+
+            if (isRoot && ((numOf2 + numOf3 == 2) || (numOf2 + numOf3 == 4)))
+            {
+                res.resize(4);
+                if (numOf2 + numOf3 == 2)
+                {
+                    if (num % 2 == 0)
+                    {
+                        res[0] = keep.x;
+                        res[1] = keep.y;
+                        res[2] = 1;
+                        res[3] = 1;
+                    }
+                    else
+                    {
+                        res[0] = keep.x;
+                        res[1] = keep.y;
+                        res[2] = keep.numOfStep;
+                        res[3] = keep.dir;
+                    }
+                    //cout<<"222222\n";
+                }
+                else
+                {
+                    if (keep.numOfStep == 2 && num > 4) {
+                        for (Step move : legal) {
+                            if (move.numOfStep != 1)
+                                continue;
+                            bool flag = false;
+                            for (int k = 1; k < 7; k++) {
+                                Step newStep = Step(move.x, move.y, 2, k);
+                                if (checkMoveValidation(state, newStep)) {
+                                    flag = true;
+                                    break;
+                                }
+                            }
+                            if (!flag) {
+                                res[0] = move.x;
+                                res[1] = move.y;
+                                res[2] = move.numOfStep;
+                                res[3] = move.dir;
+                                break;
+                            }
+                        }
+                        //cout << "legal: " << res[0] << " " << res[1] << " " << res[2] << " " << res[3] << "\n";
+                    }
+                    else if(keep.numOfStep == 2 && num == 4){
+                        res[0] = keep.x;
+                        res[1] = keep.y;
+                        res[2] = 1;
+                        res[3] = keep.dir;
+                        //cout<<"legal num==4\n";
+                    }
+                    else {
+                        //cout << "num2: " << num % 2 << "\n";
+                        if (num % 2 == 0)
+                        {
+                            res[0] = keep.x;
+                            res[1] = keep.y;
+                            res[2] = keep.numOfStep;
+                            res[3] = keep.dir;
+                        }
+                        else
+                        {
+                            res[0] = keep.x;
+                            res[1] = keep.y;
+                            res[2] = 2;
+                            res[3] = keep.dir;
+                        }
+                    }
+                }
+                /*for (int i = 0; i < 4; i++) {
+                    cout << res[i] << " ";
+                }*/
+            }
+            /*if (isRoot)
+                cout << "2 + 3: " << numOf2 + numOf3 << "size: " << res.size() << "\n";*/
 
             std::shuffle(legal.begin(), legal.end(), engine);
         }
@@ -164,55 +267,59 @@ public:
 
     MCTS()
     {
-        //engine.seed(1234);
+        srand(time(NULL));
+        engine.seed(rand() % 100000);
+        // engine.seed(1234);
         visited.resize(12, vector<int>(12, 0));
     }
 
-    int getTn(int x, int y) {
-        if (root->child2board[x][y]) {
-            //cout << root->child2board[x][y]->parent_move.x << " " << root->child2board[x][y]->parent_move.y << endl;
+    int getTn(int x, int y)
+    {
+        if (root->child2board[x][y])
+        {
+            // cout << root->child2board[x][y]->parent_move.x << " " << root->child2board[x][y]->parent_move.y << endl;
             return root->child2board[x][y]->Tn;
         }
-        else return 0;
+        else
+            return 0;
     }
 
-    void getBestChild(vector<int>& step, int x, int y) {
-        //cout << x << " " << y << endl;
-        //cout << root->child2board[x][y]->parent_move.x << " " << root->child2board[x][y]->parent_move.y << endl;
-        step[0] = root->child2board[x][y]->parent_move.x;
-        step[1] = root->child2board[x][y]->parent_move.y;
-        step[2] = root->child2board[x][y]->parent_move.numOfStep;
-        step[3] = root->child2board[x][y]->parent_move.dir;
-    }
+    void getBestChild(vector<int>& step)
+    {
+        if (res.size() == 4)
+        {
+            step = res;
+            res.clear();
+            return;
+        }
 
-    vector<int> getBestStep() {
-        int maxTn = -1;
-        Step* bestStep = nullptr;
-        vector<int> res(4);
-
-        for (auto child : root->children) {
-            if (child->Tn > maxTn) {
-                maxTn = child->Tn;
-                bestStep = &child->parent_move;
+        int max_count = -1;
+        Node* bestChild = nullptr;
+        for (Node* child : root->children)
+        {
+            int Tn = child->Tn;
+            //cout << child->parent_move.x << " " << child->parent_move.y << " " << Tn << "\n";
+            if (max_count < Tn)
+            {
+                max_count = Tn;
+                bestChild = child;
             }
         }
 
-        res[0] = bestStep->x;
-        res[1] = bestStep->y;
-        res[2] = bestStep->numOfStep;
-        res[3] = bestStep->dir;
-        cout << "return\n";
-        for (int i = 0; i < 4; i++) {
-            cout << res[i] << " ";
-        }
-        cout << "\n";
-        return res;
+        step[0] = bestChild->parent_move.x;
+        step[1] = bestChild->parent_move.y;
+        step[2] = bestChild->parent_move.numOfStep;
+        step[3] = bestChild->parent_move.dir;
     }
 
-    void print_check() {
-        for (int i = 0; i < 12; i++) {
-            for (int j = 0; j < 12; j++) {
-                if (root->child2board[i][j]) {
+    void print_check()
+    {
+        for (int i = 0; i < 12; i++)
+        {
+            for (int j = 0; j < 12; j++)
+            {
+                if (root->child2board[i][j])
+                {
                     cout << "x: " << i << "y: " << j << endl;
                     cout << "x: " << root->child2board[i][j]->parent_move.x << "y: " << root->child2board[i][j]->parent_move.y << "double check x: " << root->child2board[i][j]->parent_move.x << "numOfStep: " << root->child2board[i][j]->parent_move.numOfStep << "dir: " << root->child2board[i][j]->parent_move.dir << endl;
                 }
@@ -222,8 +329,11 @@ public:
 
     void run(int state[12][12], clock_t start, int time_limit)
     {
-        root = new Node(state, engine);
-        nodePool.push_back(*root);
+        root = new Node(state, engine, true, res);
+        if (res.size() == 4) {
+            return;
+        }
+
         clock_t end;
 
         while (1)
@@ -238,14 +348,15 @@ public:
 
     int traverse(Node* node, bool isOpponent = false)
     {
-        while (!node->legal.empty() && node->state[node->legal.back().first][node->legal.back().second] != 0) node->legal.pop_back();
+        while (!node->legal.empty() && !checkMoveValidation(node->state, node->legal.back()))
+            node->legal.pop_back();
         if (!node->legal.empty())
         {
-            //cout << "before next expand:\n";
-            //print_check();
+            // cout << "before next expand:\n";
+            // print_check();
             Node* leaf = expand(node);
-            //cout << "after next expand:\n";
-            //print_check();
+            // cout << "after next expand:\n";
+            // print_check();
             int result = simulate(leaf->state, !isOpponent);
             backpropagate(leaf, result);
             backpropagate(node, result);
@@ -287,7 +398,8 @@ public:
             }
         }
 
-        if (max_UCT == -1) {
+        if (max_UCT == -1)
+        {
             cout << "selection exit\n";
             exit(0);
         }
@@ -305,36 +417,18 @@ public:
         int after[12][12];
         memcpy(after, node->state, 12 * 12 * sizeof(int));
         vector<int> result(2);
-        result[0] = it.first;
-        result[1] = it.second;
+        result[0] = it.x;
+        result[1] = it.y;
         // let player = 3 be MCTS simualtion player
         after[result[0]][result[1]] = 3;
-        // randomly pick max distance
-        uniform_int_distribution<int> uniform(1, 3);
-        int max_step = uniform(engine);
-        //int max_step = 3;
-        //cout << "expand max step: " << max_step << endl;
-        // randomly pick direction
-        vector<int> legal_dir = { 1, 2, 3, 4, 5, 6 };
-        shuffle(legal_dir.begin(), legal_dir.end(), engine);
-        vector<Step> legal_steps;
-        int cur_length = 1;
 
-        for (int j = 0; j < max_step - 1; j++)
+        for (int j = 0; j < it.numOfStep - 1; j++)
         {
-            result = Next_Node(result[0], result[1], legal_dir[0]);
-            if (result[0] < 0 || result[0] > 11 || result[1] < 0 || result[1] > 11 || after[result[0]][result[1]] != 0) {
-                break;
-            }
-            else {
-                //cout << "check legal direction: " << legal_dir[0] << "\n";
-                //cout << result[0] << " " << result[1] << "\n";
-                after[result[0]][result[1]] = 3;
-                cur_length++;
-            }
+            result = Next_Node(result[0], result[1], it.dir);
+            after[result[0]][result[1]] = 3;
         }
-        //if (keep > 1)
-        //    cout << "expand length: " << keep << "\n";
+        // if (keep > 1)
+        //     cout << "expand length: " << keep << "\n";
         /*cout << "check after expand board:\n";
         for (int i = 0; i < 12; i++) {
             for (int j = 0; j < 12; j++) {
@@ -342,12 +436,12 @@ public:
             }
             cout << "\n";
         }*/
-        //cout << "expand step: " << it.first << " " << it.second << " " << cur_length << " " << legal_dir[0] << "\n";
-        Node* newNode = new Node(after, engine);
-        Step newStep = Step(it.first, it.second, cur_length, legal_dir[0]);
+        // cout << "expand step: " << it.first << " " << it.second << " " << cur_length << " " << legal_dir[0] << "\n";
+        Node* newNode = new Node(after, engine, false, res);
+        Step newStep = Step(it.x, it.y, it.numOfStep, it.dir);
         newNode->parent_move = newStep;
         node->children.push_back(newNode);
-        node->child2board[it.first][it.second] = newNode;
+        node->child2board[it.x][it.y] = newNode;
 
         return node->children.back();
     }
@@ -367,33 +461,33 @@ public:
         int after[12][12];
         memcpy(after, state, 12 * 12 * sizeof(int));
         int n = empty.size();
-        if (n == 0) {
-            //    cout << "empty exit\n";
-            //    exit(0);
+        if (n == 0)
+        {
             return isOpponent;
         }
 
         while (1)
         {
             int i = 0;
-            //int tmp[12][12];
-            //memcpy(tmp, after, 12 * 12 * sizeof(int));
-            //Step* nextMove = nullptr;
+            // int tmp[12][12];
+            // memcpy(tmp, after, 12 * 12 * sizeof(int));
+            // Step* nextMove = nullptr;
 
             while (i < n)
             {
                 // randomly pick up an empty space
                 std::uniform_int_distribution<int> uniform(i, n - 1);
                 int index = uniform(engine);
-                //cout << n << " " << index << "\n";
                 auto it = empty[index];
 
-                if (after[it.first][it.second] != 0) {
+                if (after[it.first][it.second] != 0)
+                {
                     // maybe be occupied by 2 or 3 step
                     swap(empty[index], empty[i]);
                     i++;
                 }
-                else {
+                else
+                {
                     vector<int> result(2);
                     result[0] = it.first;
                     result[1] = it.second;
@@ -402,20 +496,21 @@ public:
                     // randomly pick max distance
                     uniform_int_distribution<int> uniform(1, 3);
                     int max_step = uniform(engine);
-                    //cout << "simulate max step: " << max_step << endl;
                     // randomly pick direction
-                    vector<int> legal_dir = { 1, 2, 3, 4, 5, 6 };
-                    shuffle(legal_dir.begin(), legal_dir.end(), engine);
+                    uniform_int_distribution<int> uniform_dir(1, 6);
+                    int legal_dir = uniform_dir(engine);
                     int cur_length = 1;
 
                     for (int j = 0; j < max_step - 1; j++)
                     {
-                        result = Next_Node(result[0], result[1], legal_dir[0]);
-                        if (result[0] >= 0 && result[0] < 12 && result[1] >= 0 && result[1] < 12 && after[result[0]][result[1]] == 0) {
+                        result = Next_Node(result[0], result[1], legal_dir);
+                        if (result[0] >= 0 && result[0] < 12 && result[1] >= 0 && result[1] < 12 && after[result[0]][result[1]] == 0)
+                        {
                             after[result[0]][result[1]] = 3;
                             cur_length++;
                         }
-                        else break;
+                        else
+                            break;
                     }
 
                     swap(empty[index], empty[n - 1]);
@@ -424,7 +519,8 @@ public:
                 }
             }
 
-            if (i >= n - 1) return isOpponent;
+            if (i >= n - 1)
+                return isOpponent;
 
             isOpponent = !isOpponent;
             n--;
@@ -435,36 +531,31 @@ public:
     {
         node->Tn++;
         node->x += result;
-        for (int i = 0; i < (int)visited.size(); i++) {
-            for (int j = 0; j < (int)visited[0].size(); j++) {
+        /*for (int i = 0; i < 12; i++) {
+            for (int j = 0; j < 12; j++) {
                 if (visited[i][j] == 1 && node->child2board[i][j] != nullptr) {
                     node->child2board[i][j]->raveTn++;
                     node->child2board[i][j]->raveX += result;
                 }
             }
-        }
+        }*/
     }
 
     void calculate_UCT(Node& node, int N, bool isOpponent, double& UCT_val)
     {
         if (node.Tn == 0)
             return;
-        double beta = (double)node.raveTn / ((double)node.Tn + (double)node.raveTn + 4 * (double)node.Tn * (double)node.raveTn * 0.025 * 0.025);
-        double winRate = (double)node.x / (double)(node.Tn + 1);
-        double raveWinRate = (double)node.raveX / (double)(node.raveTn + 1);
-        double exploit = (isOpponent) ? (1 - beta) * (1 - winRate) + beta * (1 - raveWinRate) : (1 - beta) * winRate + beta * raveWinRate;
-        double explore = sqrt(log(N) / (double)(node.Tn + 1));
-        UCT_val = exploit + c * explore;
+        UCT_val = (double)((double)node.x / node.Tn) + 0.5 * (double)sqrt((double)log((double)N) / node.Tn);
     }
 
 private:
     Node* root;
-    float c = 0.5;
-    vector<Node> nodePool;
+    double c = 0.5;
+    // vector<Node> nodePool;
     vector<vector<int>> visited;
     default_random_engine engine;
     uniform_int_distribution<int> uniform;
-    int boardSize = 12 * 12;
+    vector<int> res;
 };
 
 /*
@@ -487,12 +578,12 @@ vector<int> GetStep(int mapStat[12][12], int gameStat[12][12])
     step.resize(4);
     /*Please write your code here*/
     // TODO
-    cout << "109550005_MCTS\n";
+    //cout << "109550005_MCTS\n";
     clock_t start = clock();
     MCTS* mcts = new MCTS();
-    mcts->run(mapStat, start, 5);
+    mcts->run(mapStat, start, 5.9);
 
-    int max_count = -1;
+    /*int max_count = -1;
     int key_x = 0, key_y = 0;
     for (int i = 0; i < 12; i++) {
         for (int j = 0; j < 12; j++) {
@@ -504,15 +595,19 @@ vector<int> GetStep(int mapStat[12][12], int gameStat[12][12])
             }
 
         }
-    }
-    //cout << max_count << endl;
-    mcts->getBestChild(step, key_x, key_y);
+    }*/
+    // cout << max_count << endl;
+    mcts->getBestChild(step);
 
     return step;
 }
 
 int main()
 {
+    cin.tie(0);
+    cout.tie(0);
+    cin.sync_with_stdio(0);
+
     int id_package;
     int mapStat[12][12];
     int gameStat[12][12];
