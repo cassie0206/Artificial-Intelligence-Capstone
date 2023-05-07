@@ -364,25 +364,6 @@ class MinesweeperAI():
                if it can be concluded based on the AI's knowledge base
             5) subset & duplication
         """
-        # 4) If, based on any of the sentences in self.KB, new cells can be marked as safe or as mines, then the function should do so.
-        # MATCHING
-        for sentence in self.KB:
-            # As the number of safes in the safe_cells variable changes with each iteration (as I am marking safes), create a copy of the initial set against which to mark safes 
-            safe_cells = sentence.known_safes()
-            safe_cells_copy = safe_cells.copy()
-
-            if safe_cells:
-                for cell in safe_cells_copy:
-                    self.mark_safe(cell)
-            
-            # As the number of mines in the mine_cells variable changes with each iteration (as I am marking mines), create a copy of the initial set against which to mark mines 
-            mine_cells = sentence.known_mines()
-            mine_cells_copy = mine_cells.copy()
-
-            if mine_cells:
-                for cell in mine_cells_copy:
-                    self.mark_mine(cell)
-        
         # 5) subset & duplication
 
         # Stores the inferred_sentences that will be added to the knowledge base
@@ -431,6 +412,25 @@ class MinesweeperAI():
             for inferred in inferred_knowledge:
                 if inferred not in self.KB:
                     self.KB.append(inferred)
+                    
+        # 4) If, based on any of the sentences in self.KB, new cells can be marked as safe or as mines, then the function should do so.
+        # MATCHING
+        for sentence in self.KB:
+            # As the number of safes in the safe_cells variable changes with each iteration (as I am marking safes), create a copy of the initial set against which to mark safes 
+            safe_cells = sentence.known_safes()
+            safe_cells_copy = safe_cells.copy()
+
+            if safe_cells:
+                for cell in safe_cells_copy:
+                    self.mark_safe(cell)
+            
+            # As the number of mines in the mine_cells variable changes with each iteration (as I am marking mines), create a copy of the initial set against which to mark mines 
+            mine_cells = sentence.known_mines()
+            mine_cells_copy = mine_cells.copy()
+
+            if mine_cells:
+                for cell in mine_cells_copy:
+                    self.mark_mine(cell)
 
 
 
@@ -528,6 +528,5 @@ if __name__ == '__main__':
 
     win /= turn
     print('\nWIN RATE: %f' % win)
-
 
 
