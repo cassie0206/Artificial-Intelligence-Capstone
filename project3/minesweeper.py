@@ -22,14 +22,13 @@ def get_parser():
     
     return parser.parse_args()
 
-class Minesweeper():
+class GameControl():
     """
     Minesweeper game representation
     GAME CONTROL
     """
 
     def __init__(self, height=HEIGHT, width=WIDTH, mines=MINES):
-        # TODO: change board size
         # Set initial width, height, and number of mines
         self.height = height
         self.width = width
@@ -82,36 +81,26 @@ class Minesweeper():
         i, j = cell
         return self.board[i][j]
 
-    def nearby_mines(self, cell):
+    def hint(self, cell):
         """
-        Returns the number of mines that are
-        within one row and column of a given cell,
-        not including the cell itself.
+        Provide the hint (number of surrounding mines)
         """
-
-        # Keep count of nearby mines
+        # for keep the number of surrounding mines
         count = 0
-
-        # Loop over all cells within one row and column
         for i in range(cell[0] - 1, cell[0] + 2):
+            # if the position is illegal, then skip
+            if i < 0 or i >= self.height:
+                continue
             for j in range(cell[1] - 1, cell[1] + 2):
-
-                # Ignore the cell itself
-                if (i, j) == cell:
+                # if the position is illegal or just the same with cell, then skip
+                if j < 0 or j >= self.width or (i == cell[0] and j == cell[1]):
                     continue
-
-                # Update count if cell in bounds and is mine
-                if 0 <= i < self.height and 0 <= j < self.width:
-                    if self.board[i][j]:
-                        count += 1
+                
+                # the position has mine, so count++
+                if self.board[i][j]:
+                    count += 1
 
         return count
-
-    def won(self):
-        """
-        Checks if all mines have been flagged.
-        """
-        return self.mines_found == self.mines
     
     def get_initial_safes(self):
         """
@@ -119,7 +108,7 @@ class Minesweeper():
         """
         return self.initial_safes
     
-    def print_current(self, revealed, flags):
+    def print_current(self, marked, flags):
         """
         Prints a text-based representation
         of where current board state.
@@ -129,8 +118,8 @@ class Minesweeper():
             for j in range(WIDTH):
                 if (i, j) in flags:
                     print("|F", end="")
-                elif (i, j) in revealed:
-                    text = "|%s" % str(self.nearby_mines((i, j)))
+                elif (i, j) in marked:
+                    text = "|%s" % str(self.hint((i, j)))
                     print(text, end="")
                 else:
                     print("| ", end="")
@@ -146,7 +135,9 @@ class Sentence():
     """
 
     def __init__(self, cells, count):
+        # keeping the coordinate of the cells
         self.cells = set(cells)
+        # keep the number of the surrouding mines
         self.count = count
 
     def __eq__(self, other):
@@ -157,58 +148,50 @@ class Sentence():
 
     def known_mines(self):
         """
-        Returns the set of all cells in self.cells known to be mines.
-        """
-
-        # Stores known mines
-        mines = set()
-
-        # Any time the number of cells is equal to the count (and count of mines is != 0), we know that all of that sentence's cells must be mines.
+        Returns the inferred mines
+        """    
+        res = set()
+        # when the number of surrounding mins is equal to the surrounding unknown mines,
+        # it means that all of them are mines 
         if len(self.cells) == self.count and self.count != 0:
-            mines = self.cells 
-            return mines 
-        else:
-            return mines
+            res = self.cells
+        
+        return res
 
     def known_safes(self):
         """
-        Returns the set of all cells in self.cells known to be safe.
+        Returns the inferred safe cells
         """
-
-        # Stores known safes
-        safes = set()
-
-        # Each time we have a sentence whose count is 0, we know that all the surrounding cells are safe
+        res = set()
+        # when the surrounding mines is 0,
+        # it means that all the surrouding cells are safe
         if self.count == 0:
-            safes = self.cells 
-            return safes 
-        else:
-            return safes
+            res = self.cells
+        
+        return res
 
     def mark_mine(self, cell):
         """
-        Updates internal knowledge representation given the fact that
-        a cell is known to be a mine.
+        update the information to the sentence that there is a mine for sure
         """
-        # If a cell known to be a mine is in the sentence, remove it and decrement the sentence mine count by one as there is now one less mine in the sentence
+        # if the mine is in the sentence,
+        # then move it out and reduce the count by one
         if cell in self.cells:
             self.cells.remove(cell)
             self.count -= 1
-            return None
-        
-        # If cell is not in the sentence, then no action is necessary.
 
     def mark_safe(self, cell):
         """
-        Updates internal knowledge representation given the fact that
-        a cell is known to be safe.
+        update the information to the sentence that there is a safe cell for sure
         """
-        # If a cell known to be safe is in the sentence, remove it without decrementing the mine count
+        # if the mine is in the sentence,
+        # then move it out and no need to reduce the count
+        # since it is count for the number of mines
         if cell in self.cells:
             self.cells.remove(cell)
-            return None
+            
 
-class MinesweeperAI():
+class Player():
     """
     Minesweeper game player
     PLAYER
@@ -233,15 +216,8 @@ class MinesweeperAI():
             self.safes.add(cell)
             cells = set()
             cells.add(cell)
-            #self.KB.append(Sentence(cells, 0))
+            self.KB.append(Sentence(cells, 0))
 
-        # print('current KB:')
-        #for sentence in self.KB:
-        #    print(sentence.cells, end=' ')
-        #    print(sentence.count)
-
-        # Keep track of which cells have been clicked on
-        # self.moves_made = set()
         # represent marked cell
         # set(cell) -> set(set())
         # TODO change to list()
@@ -249,9 +225,7 @@ class MinesweeperAI():
 
     def mark_mine(self, cell):
         """
-        UNIT PROPAGATION
-        Marks a cell as a mine, and updates all knowledge
-        to mark that cell as a mine as well.
+        UNIT PROPAGATION for mines
         """
         self.mines.add(cell)
         for sentence in self.KB:
@@ -259,9 +233,7 @@ class MinesweeperAI():
 
     def mark_safe(self, cell):
         """
-        UNIT PROPAGATION
-        Marks a cell as safe, and updates all knowledge
-        to mark that cell as safe as well.
+        UNIT PROPAGATION for safe cell
         """
         self.safes.add(cell)
         for sentence in self.KB:
@@ -278,17 +250,6 @@ class MinesweeperAI():
             for sentence in self.KB:
                 print(sentence.cells, end=' ')
                 print(sentence.count)
-        """
-        for sentence in self.KB:
-            if len(sentence.cells) == 1 and sentence.cells not in self.KB0:
-                cell = sentence.cells.pop()
-                if sentence.count == 0:
-                    # Mark that cell as safe
-                    self.mark_safe(cell)
-                else:
-                    # Mark that cell as mine
-                    self.mark_mine(cell)
-        """
         
         for safe in self.safes:
             if safe not in self.KB0:
@@ -316,12 +277,12 @@ class MinesweeperAI():
     
     def insert_new_clause(self, cell, count):
         """
-            insert the clauses regarding its unmarked neighbors into the KB
+            1. generating new sentencce from the hints
+            2. insert the clauses regarding its unmarked neighbors into the KB
         """
-        # Stores neighboring cells
-        adjacent_cells = set()
+        unmarked_neibors = set()
 
-        # Do resolution of the new clause with all the clauses in KB0
+        # 1. generating new sentencce from the hints
         for i in range(cell[0] - 1, cell[0] + 2):
             if i < 0 or i >= self.height:
                 continue
@@ -329,109 +290,94 @@ class MinesweeperAI():
                 if j < 0 or j >= self.width or (i == cell[0] and j == cell[1]):
                     continue
 
-                if (i, j) in self.mines:
-                    count -= 1
+                # skip if marked
+                if (i, j) in self.safes or (i, j) in self.mines or (i, j) in self.KB0:
+                    if (i, j) in self.mines:
+                        count -= 1
                     continue
 
-                if (i, j) in self.safes or (i, j) in self.KB0:
-                    continue
+                unmarked_neibors.add((i, j))
+
+        new_sentence = Sentence(unmarked_neibors, count)
+        safes = new_sentence.known_safes()
+        mines = new_sentence.known_mines()
+        
+        # do resolution and insert the new sentence in KB
+        if safes != set():
+            keep = safes.copy()
+            for safe in keep:
+                self.mark_safe(safe)
+
+        elif mines != set():
+            keep = mines.copy()
+            for mine in keep:
+                self.mark_mine(mine)
                 
-                adjacent_cells.add((i, j))
-
-        # Creates a new sentence based on the cell's neighboring cells and the count 
-        new_sentence = Sentence(adjacent_cells, count)
-
-        # Check if new_sentence should be added to the knowledge base based on based on it's value of `cell` and `count`. Make a copy of the new_sentence_safe_cells to avoid modifying it while checking if it should be added to the knowledge base
-        new_sentence_safe_cells = new_sentence.cells 
-        new_sentence_safe_cells_copy = new_sentence_safe_cells.copy()
-    
-        # No need to add new_sentence with count = 0 to knowledge base as all cells are safe, mark them as such
-        if new_sentence.count == 0:
-            for cell in new_sentence_safe_cells_copy:
-                self.mark_safe(cell)
-
-        # if the number of mines is equal to the count of mine, which means all the cells are mine
-        elif new_sentence.count == len(new_sentence.cells):
-            for cell in new_sentence_safe_cells_copy:
-                self.mark_mine(cell)
+        # Skip the insertion if there is an identical clause in KB.
+        elif new_sentence in self.KB:
+            pass
 
         else:
             self.KB.append(new_sentence)
 
     def matching(self):
         """
-            4) mark any additional cells as safe or as mines
-               if it can be concluded based on the AI's knowledge base
-            5) subset & duplication
+            1. duplication
+            2. matching
+            If new clauses are generated due to resolution, insert them into the KB or safes or mins
         """
-        # 5) subset & duplication
+        # 1. duplication
+        # keep the sentence needed to be removed owning to duplication and resolution
+        removed_sentence = []
+        # keep the inferred sentence needed to be appended owning to resolution
+        stricker_sentence = []
 
-        # Stores the inferred_sentences that will be added to the knowledge base
-        inferred_knowledge = []
+        if len(self.KB) != 0:
+            for i in range(len(self.KB)):
+                for j in range(len(self.KB)):
+                    if i >= j: 
+                        continue
 
-        # Compare cells and count for 2 sentences (s1 and s2) extracted from the knowledge base
-        if self.KB is not []:
-            for sentence1 in self.KB:
-                for sentence2 in self.KB:
-                # If there are 2 sentences in the knowledge_chunker
-                    if sentence1 != sentence2:
-                        # Create set1
-                        set1 = sentence1
-                        set1_cells = set1.cells 
-                        set1_count = set1.count
+                    sentence1 = self.KB[i]
+                    sentence2 = self.KB[j]
 
-                        # Create set2
-                        set2 = sentence2
-                        set2_cells = set2.cells 
-                        set2_count = set2.count 
+                    # duplication
+                    if sentence1 == sentence2 and sentence1.cells != set():
+                        removed_sentence.append(sentence2)
 
-                        # Remove any duplicates 
-                        if set1 == set2:
-                            self.KB.remove(set2)
+                    # resolution
+                    elif sentence1.cells.issubset(sentence2.cells):
+                        stricker_sentence.append(Sentence(sentence2.cells - sentence1.cells, sentence2.count - sentence1.count))
+                        removed_sentence.append(sentence2)
 
-                        elif set1_cells != set2_cells:
-                            # Check if set1 is a subset of set2
-                            if set1_cells.issubset(set2_cells):
-                                inferred_cells = set2_cells - set1_cells
-                                inferred_count = set2_count - set1_count 
-                                inferred_sentence = Sentence(inferred_cells, inferred_count)
-                                # Add new sentence to inferred knowledge base
-                                inferred_knowledge.append(inferred_sentence)
+                    elif sentence1.cells.issuperset(sentence2.cells):
+                        stricker_sentence.append(Sentence(sentence1.cells - sentence2.cells, sentence1.count - sentence2.count))
+                        removed_sentence.append(sentence1)
 
-                            # Check if set2 is a subset of set1
-                            elif set2_cells.issubset(set1_cells):
-                                inferred_cells = set1_cells - set2_cells
-                                inferred_count = set1_count - set2_count
-                                inferred_sentence = Sentence(inferred_cells, inferred_count)
-                                # Add inferred sentence to inferred knowledge base
-                                inferred_knowledge.append(inferred_sentence)
+        if len(removed_sentence) != 0:
+            for sentence in removed_sentence:
+                if sentence in self.KB:
+                    self.KB.remove(sentence)
         
-        # If no inferred knowledge, don't modify the knowledge base
-        if len(inferred_knowledge) != 0:
-            # Add inferred sentence to the knowledge base if it isn't present yet
-            for inferred in inferred_knowledge:
-                if inferred not in self.KB:
-                    self.KB.append(inferred)
-                    
-        # 4) If, based on any of the sentences in self.KB, new cells can be marked as safe or as mines, then the function should do so.
-        # MATCHING
+        if len(stricker_sentence) != 0:
+            for sentence in stricker_sentence:
+                if sentence not in self.KB:
+                    self.KB.append(sentence)
+
+        # 2. matching
         for sentence in self.KB:
-            # As the number of safes in the safe_cells variable changes with each iteration (as I am marking safes), create a copy of the initial set against which to mark safes 
-            safe_cells = sentence.known_safes()
-            safe_cells_copy = safe_cells.copy()
+            # check for safe cell
+            safes = sentence.known_safes()
+            if safes != set():
+                keep = safes.copy()
+                for safe in keep:
+                    self.mark_safe(safe)
 
-            if safe_cells:
-                for cell in safe_cells_copy:
-                    self.mark_safe(cell)
-            
-            # As the number of mines in the mine_cells variable changes with each iteration (as I am marking mines), create a copy of the initial set against which to mark mines 
-            mine_cells = sentence.known_mines()
-            mine_cells_copy = mine_cells.copy()
-
-            if mine_cells:
-                for cell in mine_cells_copy:
-                    self.mark_mine(cell)
-
+            mines = sentence.known_mines()
+            if mines != set():
+                keep = mines.copy()
+                for mine in keep:
+                    self.mark_mine(mine)
 
 
 if __name__ == '__main__':
@@ -440,6 +386,7 @@ if __name__ == '__main__':
     toPrint = parser.show
     win = 0
 
+    # ask the player for the game level
     ans = input('Please chose the difficulty:\n(A) Easy (9x9 board with 10 mines)\n\
 (B) Medium (16x16 board with 25 mines)\n\
 (C) Hard (30x16 board with 99 mines)\n')
@@ -447,15 +394,15 @@ if __name__ == '__main__':
     if ans == 'B' or ans == '(B)' or ans == 'b':
         HEIGHT, WIDTH, MINES = 16, 16, 25
     elif ans == 'C' or ans == '(C)' or ans == 'c':
-        HEIGHT, WIDTH, MINES = 30, 16, 99
+        HEIGHT, WIDTH, MINES = 16, 30, 99
 
     for i in range(turn):
         # Create game and AI agent
-        game = Minesweeper(height=HEIGHT, width=WIDTH, mines=MINES)
-        ai = MinesweeperAI(game, height=HEIGHT, width=WIDTH)
+        game = GameControl(height=HEIGHT, width=WIDTH, mines=MINES)
+        ai = Player(game, height=HEIGHT, width=WIDTH)
 
         # Keep track of revealed cells, flagged cells, and if a mine was hit
-        revealed = set()
+        marked = set()
         flags = set()
         lost = False
 
@@ -482,7 +429,7 @@ if __name__ == '__main__':
             if lost:
                 print('Game #%s LOSE' % str(i + 1))
                 break
-            elif flags == game.mines:
+            elif len(flags) + len(marked) == HEIGHT * WIDTH:
                 print('Game #%s WIN' % str(i + 1))
                 win += 1
                 break
@@ -502,6 +449,9 @@ if __name__ == '__main__':
                 print(move)
             
             if move:
+                # Process the "matching" of that clause to all the remaining clauses in the KB.
+                ai.matching()
+                stuck = 0
                 if move in ai.mines:
                     flags.add(move)
                 elif game.is_mine(move):
@@ -509,18 +459,17 @@ if __name__ == '__main__':
                 else:
                     # this cell is safe
                     # Query the game control module for the hint at that cell
-                    ai.matching()
-                    nearby = game.nearby_mines(move)
-                    ai.insert_new_clause(move, nearby)
-                    # ai.matching()
-                    revealed.add(move)
+                    hint = game.hint(move)
+                    ai.insert_new_clause(move, hint)
+                    # keep for visulaizaton
+                    marked.add(move)
             else:
                 ai.matching()
                 stuck += 1
 
             # print current board state
             if toPrint:
-                game.print_current(revealed, flags)
+                game.print_current(marked, flags)
 
         # for checking use
         if toPrint:
